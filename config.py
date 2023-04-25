@@ -1,2 +1,2 @@
-TOKEN = '5956333144:AAFCHLFe_QMzZ_G4YQCNdWtlSADRetCycgU'
-API = '55a86912ecf42a052615c0bde82ca02d'
+TOKEN = your token
+Api = Your Api
