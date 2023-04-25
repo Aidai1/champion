@@ -1,92 +1,45 @@
-import request
+import telebot
 import requests
-import datetime
-from config import TOKEN, API, API_key
-from aiogram import Bot, types
-from aiogram.dispatcher import Dispatcher
-from aiogram.utils import executor
-import re
+import os
+from config import TOKEN, API
 
 
+bot = telebot.TeleBot(TOKEN)
 
-bot = Bot(token=TOKEN)
-dp = Dispatcher(bot)
-
-
-@dp.message_handler(commands=["start"])
-async def start_command(message: types.Message):
-    await message.reply("Привет! Напиши мне название города и я пришлю сводку погоды!")
-
-
-
-
-
-
-@dp.message_handler()
-async def get_weather(message: types.Message):
-    code_to_smile = {
-        "Clear": "Ясно \U00002600",
-        "Clouds": "Облачно \U00002601",
-        "Rain": "Дождь \U00002614",
-        "Drizzle": "Облачно \U00002614",
-        "Thunderstorm": "Гроза \U000026A1",
-        "Snow": "Снег \U0001F328",
-        "Mist": "Туман \U0001F32B"
-    }
-
-    try:
-        r = requests.get(
-            f'http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API},{API_key}&units=metric'
-    
-        )
-        data = r.json()
-        
-        
-        pattern = r'(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)'
-        text = '37.7749 122.4194'
-        matches = re.search(pattern, text)
-        lat = float(matches.group(1))
-        lon = float(matches.group(2))
-     
-
-        city = data["name"]
-        cur_weather = data["main"]["temp"]
-
-        
-
-        weather_description = data["weather"][0]["main"]
-        if weather_description in code_to_smile:
-            wd = code_to_smile[weather_description]
-        else:
-            wd = "Посмотри в окно, не пойму что там за погода!"
-
-        humidity = data["main"]["humidity"]
-        pressure = data["main"]["pressure"]
-        wind = data["wind"]["speed"]
-        sunrise_timestamp = datetime.datetime.fromtimestamp(data["sys"]["sunrise"])
-        sunset_timestamp = datetime.datetime.fromtimestamp(data["sys"]["sunset"])
-        length_of_the_day = datetime.datetime.fromtimestamp(data["sys"]["sunset"]) - datetime.datetime.fromtimestamp(
-            data["sys"]["sunrise"])
-
-        await message.reply(f"***{datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}{lat}{lon}***\n"
-              f"Погода в городе: {text}\nТемпература: {cur_weather}C° {wd}\n"
-              f"Влажность: {humidity}%\nДавление: {pressure} мм.рт.ст\nВетер: {wind} м/с\n"
-              f"Восход солнца: {sunrise_timestamp}\nЗакат солнца: {sunset_timestamp}\nПродолжительность дня: {length_of_the_day}\n"
-              
-              )
-
-        if matches:
-            lat = float(matches.group(1))
-            lon = float(matches.group(2))
-            await(f'Широта: {lat}, Долгота: {lon}')
-        else: 
-            await message.reply("\U00002620 Проверьте название города \U00002620")
+def get_weather(lat, lon):
   
-    except:
-        await message.reply(f'Неверны координаты введите широту и долгoту') 
+    url = f'http://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={API}&units=metric'
+    
+   
+    response = requests.get(url)
+
+    
+    if response.status_code == 200:
+        data = response.json()
         
+        city = data['name']
+        description = data['weather'][0]['description']
+        temp = data['main']['temp']
+        feels_like = data['main']['feels_like']
 
+        
+        return f'Weather in {city}: {description}\nTemperature: {temp}°C\nFeels like: {feels_like}°C'
+    else:
+       
+        return 'Could not retrieve weather information at this time.'
 
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    bot.reply_to(message, 'Hi, send me your location to get the weather.')
 
-if __name__ == '__main__':
-     executor.start_polling(dp)
+@bot.message_handler(content_types=['location'])
+def location_message(message):
+
+    lat = message.location.latitude
+    lon = message.location.longitude
+    print(lat, lon)
+
+    weather = get_weather(lat, lon)
+    bot.reply_to(message, weather)
+
+bot.polling()
